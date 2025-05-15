@@ -1,4 +1,4 @@
-````markdown
+
 # bootstrap-nextjs.sh
 
 Cross-platform, production-grade provisioning for Next.js projects
@@ -31,7 +31,7 @@ Cross-platform, production-grade provisioning for Next.js projects
    ```bash
    wget https://…/bootstrap-nextjs.sh -O bootstrap-nextjs.sh
    chmod +x bootstrap-nextjs.sh
-````
+
 
 2. (Optional) Generate a sample config:
 
