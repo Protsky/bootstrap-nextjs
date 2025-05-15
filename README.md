@@ -1,43 +1,148 @@
-# Bootstrap Next.js Script
+````markdown
+# bootstrap-nextjs.sh
 
-This guide will walk you through preparing your Ubuntu server and running the `bootstrap-nextjs.sh` script to provision a new Next.js project with Docker, Git, and secret management.
-
----
+Cross-platform, production-grade provisioning for Next.js projects
 
 ## Prerequisites
 
-1. **Ubuntu Server** (18.04+, 20.04, or 22.04)  
-2. **SSH Access** with a user that can run `sudo`  
-3. **Git** installed on your server (the script will install if missing)  
-4. **Docker** and **Docker Compose** (the script will install and enable by default)  
-5. **GitHub CLI** (`gh`) or **GitLab CLI** (`glab`) if you plan to create a remote repo  
-6. **Vault CLI** or **AWS CLI** if you use the corresponding secret provider  
+- A POSIX-compliant shell (bash)
+- **Root** privileges (script must run as root)
+- One of the following package managers:
+  - Debian/Ubuntu: `apt-get`
+  - Red Hat/CentOS: `yum`
+  - macOS: `brew`
+- Installed or installable packages:
+  - `curl`
+  - `git`
+  - `jq`
+  - `gh` (GitHub CLI) or `glab` (GitLab CLI) if you want remote repo creation
+  - `docker`
+  - `docker-compose` (or Docker Compose v2 via `docker compose`)
+  - `vault` CLI (if using Vault for secrets)
+  - `aws` CLI (if using AWS Secrets Manager)
+  - `tar`, `ss`, `gpg`
+- Network access to:
+  - Your template repository (HTTPS)
+  - Vault or AWS Secrets Manager endpoints (if using)
 
----
+## Installation
 
-## Step 1: Transfer & Prepare the Script
+1. Download the script:
+   ```bash
+   wget https://…/bootstrap-nextjs.sh -O bootstrap-nextjs.sh
+   chmod +x bootstrap-nextjs.sh
+````
 
-1. **Copy** `bootstrap-nextjs.sh` to your server:
+2. (Optional) Generate a sample config:
 
    ```bash
-   scp bootstrap-nextjs.sh user@your-server:/home/user/
+   sudo ./bootstrap-nextjs.sh --generate-config
+   ```
 
-    SSH into your server:
+   Edit `~/.bootstrap_nextjs.conf` to customize defaults.
 
-ssh user@your-server
+## Usage
 
-Make the script executable:
+```bash
+sudo ./bootstrap-nextjs.sh [options]
+```
 
-    chmod +x ~/bootstrap-nextjs.sh
+### Required
 
-Step 2: (Optional) Generate & Customize Config
+* `-n NAME`
+  Project name (alphanumeric, `_`, or `-`).
 
-You can generate a default config file to avoid passing flags every run:
+### Common Options
 
-sudo ~/bootstrap-nextjs.sh --generate-config
+* `-v VISIBILITY`
+  `public` or `private` (default: `public`).
 
-This creates ~/.bootstrap_nextjs.conf: edit it to set defaults:
+* `-t TEMPLATE_REPO`
+  Template repo URL (must start with `https://`).
 
+* `-r TEMPLATE_REF`
+  Template branch or tag (default: `main`).
+
+* `--projects-root DIR`
+  Base directory for new projects (default: `~/progetti`).
+
+* `--backup-root DIR`
+  Mirror backup directory (default: `~/backup/repos`).
+
+* `--port-start NUM`
+  Starting port (1024–65535; default: `3000`).
+
+* `--retention-days NUM`
+  Backup retention in days (default: `30`).
+
+* `--secret-provider vault|aws|none`
+  Secrets backend (default: `vault`).
+
+* `--dry-run`
+  Show planned actions without executing.
+
+* `--yes`
+  Non-interactive mode (assume “yes” to all prompts).
+
+* `--skip-vault`
+  Don’t fetch secrets from Vault.
+
+* `--skip-backup`
+  Don’t mirror the repo.
+
+* `--skip-remote`
+  Don’t create a remote repo.
+
+* `--no-enable-docker`
+  Install Docker but don’t enable/start via systemd.
+
+* `--verbose`
+  Enable debug tracing.
+
+* `-h, --help`
+  Show help and exit.
+
+## Examples
+
+```bash
+# Generate a sample config
+sudo ./bootstrap-nextjs.sh -n my-app --generate-config
+
+# Dry run, private project, custom template
+sudo ./bootstrap-nextjs.sh -n my-app -v private \
+  -t https://github.com/your-org/nextjs-template.git --dry-run
+
+# Non-interactive, skip backup
+sudo ./bootstrap-nextjs.sh -n my-app --yes --skip-backup
+```
+
+## What It Does
+
+1. Detects OS and installs prerequisites (curl, git, jq, gh, docker, etc.).
+2. Installs/enables Docker & Docker Compose.
+3. Clones the Next.js template repo.
+4. Assigns a free port from your `--port-start`.
+5. Generates `Dockerfile`, `.dockerignore`, and `docker-compose.yml`.
+6. Fetches or writes `.env` (Vault, AWS, or example).
+7. Detects Node version via `.nvmrc` or `package.json`.
+8. Initializes a local Git repo and commits.
+9. Creates a remote repo on GitHub/GitLab (unless skipped).
+10. Generates a simple `README.md`.
+11. Sets up a GitHub Actions CI workflow.
+12. Mirrors the repo to your backup directory and prunes old backups.
+13. Starts the Docker container.
+14. Prints a summary (URLs, port, log file).
+
+## Logging
+
+All actions are logged to `~/bootstrap_nextjs.log`. Check this file for troubleshooting.
+
+## Configuration
+
+Create `~/.bootstrap_nextjs.conf` to override defaults:
+
+```bash
+# ~/.bootstrap_nextjs.conf
 PROJECTS_ROOT="$HOME/progetti"
 BACKUP_ROOT="$HOME/backup/repos"
 PORT_START=3000
@@ -48,66 +153,13 @@ IMAGE_REGISTRY="ghcr.io/your-org"
 BASE_IMAGE="node:18-alpine"
 BRANCH="main"
 SECRET_PROVIDER="vault"
+```
 
-Step 3: Set Environment Variables for Secrets
+## Troubleshooting
 
-    Vault provider:
+* **Not root?** Run with `sudo`.
+* **Port in use?** Choose a different `--port-start`.
+* **Vault errors?** Ensure `VAULT_ADDR`, `VAULT_ROLE_ID`, and `VAULT_SECRET_ID` are set.
+* **AWS errors?** Make sure your AWS CLI is configured.
 
-export VAULT_ADDR="https://vault.example.com"
-export VAULT_ROLE_ID="<your-role-id>"
-export VAULT_SECRET_ID="<your-secret-id>"
-export VAULT_PATH="secret/data"
 
-AWS provider (if selected):
-
-    aws configure
-
-If you choose none, the script will generate an .env.example file.
-Step 4: Install & Authenticate Git CLI
-
-    GitHub CLI:
-
-sudo apt update && sudo apt install gh -y
-gh auth login
-
-GitLab CLI:
-
-    sudo apt install glab -y
-    glab auth login
-
-This ensures the script can create a remote repo if --skip-remote is not used.
-Step 5: Run the Script
-
-Use sudo (the script requires root to install packages and enable Docker):
-
-sudo ~/bootstrap-nextjs.sh \
-  -n my-app \
-  -v private \
-  -t https://github.com/your-org/nextjs-template.git \
-  -r main
-
-    -n: Project name (alphanumeric, _ or -)
-
-    -v: Visibility (public or private)
-
-    -t and -r: Template URL and branch/tag (if not set in config)
-
-To preview actions without changing anything, add --dry-run:
-
-sudo ~/bootstrap-nextjs.sh -n my-app --dry-run
-
-Step 6: After Completion
-
-    Your project is created under $PROJECTS_ROOT/my-app.
-
-    Docker container is running on the first available port starting at PORT_START (default 3000).
-
-    A backup mirror is stored in $BACKUP_ROOT/my-app.git.
-
-    Check logs in ~/bootstrap_nextjs.log for details.
-
-cd ~/progetti/my-app
-docker compose ps
-tail -n 50 ~/bootstrap_nextjs.log
-
-Enjoy your new Next.js project!
