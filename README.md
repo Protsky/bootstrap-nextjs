@@ -1,34 +1,34 @@
-Bootstrap Next.js Script
+# Bootstrap Next.js Script
 
-This guide will walk you through preparing your Ubuntu server and running the bootstrap-nextjs.sh script to provision a new Next.js project with Docker, Git, and secret management.
+This guide will walk you through preparing your Ubuntu server and running the `bootstrap-nextjs.sh` script to provision a new Next.js project with Docker, Git, and secret management.
 
-Prerequisites
+---
 
-Ubuntu Server (18.04+, 20.04, or 22.04)
+## Prerequisites
 
-SSH Access with a user that can run sudo
+1. **Ubuntu Server** (18.04+, 20.04, or 22.04)  
+2. **SSH Access** with a user that can run `sudo`  
+3. **Git** installed on your server (the script will install if missing)  
+4. **Docker** and **Docker Compose** (the script will install and enable by default)  
+5. **GitHub CLI** (`gh`) or **GitLab CLI** (`glab`) if you plan to create a remote repo  
+6. **Vault CLI** or **AWS CLI** if you use the corresponding secret provider  
 
-Git installed on your server (the script will install if missing)
+---
 
-Docker and Docker Compose (the script will install and enable by default)
+## Step 1: Transfer & Prepare the Script
 
-GitHub CLI (gh) or GitLab CLI (glab) if you plan to create a remote repo
+1. **Copy** `bootstrap-nextjs.sh` to your server:
 
-Vault CLI or AWS CLI if you use the corresponding secret provider
+   ```bash
+   scp bootstrap-nextjs.sh user@your-server:/home/user/
 
-Step 1: Transfer & Prepare the Script
-
-Copy bootstrap-nextjs.sh to your server:
-
-scp bootstrap-nextjs.sh user@your-server:/home/user/
-
-SSH into your server:
+    SSH into your server:
 
 ssh user@your-server
 
 Make the script executable:
 
-chmod +x ~/bootstrap-nextjs.sh
+    chmod +x ~/bootstrap-nextjs.sh
 
 Step 2: (Optional) Generate & Customize Config
 
@@ -51,7 +51,7 @@ SECRET_PROVIDER="vault"
 
 Step 3: Set Environment Variables for Secrets
 
-Vault provider:
+    Vault provider:
 
 export VAULT_ADDR="https://vault.example.com"
 export VAULT_ROLE_ID="<your-role-id>"
@@ -60,24 +60,22 @@ export VAULT_PATH="secret/data"
 
 AWS provider (if selected):
 
-aws configure
+    aws configure
 
 If you choose none, the script will generate an .env.example file.
-
 Step 4: Install & Authenticate Git CLI
 
-GitHub CLI:
+    GitHub CLI:
 
 sudo apt update && sudo apt install gh -y
 gh auth login
 
 GitLab CLI:
 
-sudo apt install glab -y
-glab auth login
+    sudo apt install glab -y
+    glab auth login
 
 This ensures the script can create a remote repo if --skip-remote is not used.
-
 Step 5: Run the Script
 
 Use sudo (the script requires root to install packages and enable Docker):
@@ -88,11 +86,11 @@ sudo ~/bootstrap-nextjs.sh \
   -t https://github.com/your-org/nextjs-template.git \
   -r main
 
--n: Project name (alphanumeric, _ or -)
+    -n: Project name (alphanumeric, _ or -)
 
--v: Visibility (public or private)
+    -v: Visibility (public or private)
 
--t and -r: Template URL and branch/tag (if not set in config)
+    -t and -r: Template URL and branch/tag (if not set in config)
 
 To preview actions without changing anything, add --dry-run:
 
@@ -100,13 +98,13 @@ sudo ~/bootstrap-nextjs.sh -n my-app --dry-run
 
 Step 6: After Completion
 
-Your project is created under $PROJECTS_ROOT/my-app.
+    Your project is created under $PROJECTS_ROOT/my-app.
 
-Docker container is running on the first available port starting at PORT_START (default 3000).
+    Docker container is running on the first available port starting at PORT_START (default 3000).
 
-A backup mirror is stored in $BACKUP_ROOT/my-app.git.
+    A backup mirror is stored in $BACKUP_ROOT/my-app.git.
 
-Check logs in ~/bootstrap_nextjs.log for details.
+    Check logs in ~/bootstrap_nextjs.log for details.
 
 cd ~/progetti/my-app
 docker compose ps
